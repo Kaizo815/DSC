@@ -12,6 +12,13 @@ function addFullscreenWatermark() {
 
 const all = window.DRAGONS;
 const q = id => document.getElementById(id);
+const eyebrow = document.querySelector('.eyebrow');
+if (eyebrow) {
+  const notice = document.createElement('span');
+  notice.textContent = ' · 仅供查阅 · 禁止商业用途';
+  notice.style.cssText = 'font-weight:700;letter-spacing:.45px;opacity:1';
+  eyebrow.append(notice);
+}
 const grid = q('grid');
 const storageKey = 'dragon-story-offline-favourites-v1';
 let favourites = new Set();
