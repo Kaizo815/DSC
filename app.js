@@ -262,6 +262,7 @@ function draw() {
   grid.replaceChildren(fragment);
   const remaining = list.length - shown.length;
   loadMore.hidden = remaining <= 0;
+  loadMore.style.display = remaining > 0 ? 'block' : 'none';
   if (remaining > 0) loadMore.textContent = `\u52a0\u8f7d\u66f4\u591a\uff08\u8fd8\u6709 ${remaining.toLocaleString()} \u6761\uff09`;
 }
 
@@ -290,5 +291,5 @@ refreshFavouritesToggle();
 draw();
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20260726-fast4', { scope: './' }).catch(() => {}));
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20260726-fast5', { scope: './' }).catch(() => {}));
 }
