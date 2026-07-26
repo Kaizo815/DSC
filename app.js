@@ -239,7 +239,6 @@ loadMore.style.cssText = 'display:block;margin:4px auto 8px;padding:12px 20px;bo
 loadMore.addEventListener('click', () => {
   visibleCount += PAGE_SIZE;
   draw();
-  loadMore.scrollIntoView({ block: 'nearest' });
 });
 grid.after(loadMore);
 
@@ -278,5 +277,5 @@ refreshFavouritesToggle();
 draw();
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20260726-fast1', { scope: './' }).catch(() => {}));
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20260726-fast2', { scope: './' }).catch(() => {}));
 }
