@@ -283,9 +283,12 @@ q('favorites-toggle').addEventListener('click', () => {
 
 buildElementPicker();
 addFullscreenWatermark();
+document.querySelectorAll('.watermark-overlay span').forEach(item => {
+  item.style.opacity = window.innerWidth <= 650 ? '.18' : '.19';
+});
 refreshFavouritesToggle();
 draw();
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20260726-fast3', { scope: './' }).catch(() => {}));
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20260726-fast4', { scope: './' }).catch(() => {}));
 }
