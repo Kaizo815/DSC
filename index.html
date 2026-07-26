@@ -1,7 +1,29 @@
 <!doctype html>
-<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>龙族物语图鉴 - 离线版</title><link rel="stylesheet" href="style.css">
-<body><header><div><p class="eyebrow">DRAGON STORY</p><h1>龙族物语图鉴 <span class="credit">@龙族物语交流Q群 140614920 · 整理日期 2026.7.25</span></h1><p id="summary">正在载入…</p></div></header>
-<main><section class="tools"><input id="search" type="search" placeholder="搜索龙名称、属性或稀有度…"><select id="rarity"><option value="">所有稀有度</option></select><button id="favorites-toggle" class="favorites-toggle" type="button" aria-pressed="false"></button><div class="element-picker"><button id="element-toggle" type="button" aria-expanded="false">所有属性 ▾</button><div id="element-options" class="element-options" hidden></div></div><select id="element"><option value="">所有属性</option></select></section><section id="grid" class="grid"></section></main>
-<template id="card"><article class="card"><div class="heading"><h2></h2><a class="origin" target="_blank" rel="noreferrer">Fandom 页面 ↗</a></div><div class="facts"><div><span>属性</span><p class="elements"></p></div><div><span>稀有度</span><p class="rarity"></p></div></div><div class="forms"></div></article></template>
-<script src="data.js"></script><script src="app.js"></script></body></html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>&#x9F99;&#x65CF;&#x7269;&#x8BED;&#x56FE;&#x9274; - &#x7F51;&#x9875;&#x7248;</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header><div>
+    <p class="eyebrow">DRAGON STORY</p>
+    <h1>&#x9F99;&#x65CF;&#x7269;&#x8BED;&#x56FE;&#x9274; <span class="credit">@&#x9F99;&#x65CF;&#x7269;&#x8BED;&#x4EA4;&#x6D41;Q&#x7FA4; 140614920 &#183; &#x6574;&#x7406;&#x65E5;&#x671F; 2026.7.25</span></h1>
+    <p style="margin:8px 0 0;color:#ffffffd9;font-size:13px">&#x672C;&#x7AD9;&#x4E3A;&#x975E;&#x5B98;&#x65B9;&#x7C89;&#x4E1D;&#x6574;&#x7406;&#x3002;&#x5982;&#x6D89;&#x53CA;&#x4FB5;&#x6743;&#xFF0C;&#x8BF7;&#x8054;&#x7CFB;&#xFF1A;<a href="mailto:3121534446@qq.com" style="color:#fff;font-weight:700;text-decoration:underline">3121534446@qq.com</a></p>
+    <p id="summary">&#x6B63;&#x5728;&#x52A0;&#x8F7D;&#x2026;</p>
+  </div></header>
+  <main>
+    <section class="tools">
+      <input id="search" type="search" placeholder="&#x641C;&#x7D22;&#x9F99;&#x540D;&#x79F0;&#x3001;&#x5C5E;&#x6027;&#x6216;&#x7A00;&#x6709;&#x5EA6;&#x2026;">
+      <select id="rarity"><option value="">&#x6240;&#x6709;&#x7A00;&#x6709;&#x5EA6;</option></select>
+      <button id="favorites-toggle" class="favorites-toggle" type="button" aria-pressed="false"></button>
+      <div class="element-picker"><button id="element-toggle" type="button" aria-expanded="false">&#x6240;&#x6709;&#x5C5E;&#x6027; &#x25BE;</button><div id="element-options" class="element-options" hidden></div></div>
+      <select id="element"><option value="">&#x6240;&#x6709;&#x5C5E;&#x6027;</option></select>
+    </section>
+    <section id="grid" class="grid"></section>
+  </main>
+  <template id="card"><article class="card"><div class="heading"><h2></h2><a class="origin" target="_blank" rel="noreferrer">Fandom &#x9875;&#x9762; &#x2197;</a></div><div class="facts"><div><span>&#x5C5E;&#x6027;</span><p class="elements"></p></div><div><span>&#x7A00;&#x6709;&#x5EA6;</span><p class="rarity"></p></div></div><div class="forms"></div></article></template>
+  <script src="data.js?v=20260726-2"></script><script src="app.js?v=20260726-2"></script>
+</body>
+</html>

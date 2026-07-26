@@ -12,7 +12,6 @@ function addFullscreenWatermark() {
 
 const all = window.DRAGONS;
 const q = id => document.getElementById(id);
-document.title = '\u9f99\u65cf\u7269\u8bed\u56fe\u9274 - \u7f51\u9875\u7248';
 const eyebrow = document.querySelector('.eyebrow');
 if (eyebrow) {
   const notice = document.createElement('span');
@@ -21,15 +20,6 @@ if (eyebrow) {
   eyebrow.append(notice);
 }
 const grid = q('grid');
-const contactNotice = document.createElement('footer');
-contactNotice.style.cssText = 'margin:8px 0 0;color:#ffffffd9;font-size:13px';
-contactNotice.append('\u672c\u7ad9\u4e3a\u975e\u5b98\u65b9\u7c89\u4e1d\u6574\u7406\u3002\u5982\u6d89\u53ca\u4fb5\u6743\uff0c\u8bf7\u8054\u7cfb\uff1a');
-const contactEmail = document.createElement('a');
-contactEmail.href = 'mailto:3121534446@qq.com';
-contactEmail.textContent = '3121534446@qq.com';
-contactEmail.style.cssText = 'color:#fff;font-weight:700;text-decoration:underline';
-contactNotice.append(contactEmail);
-document.querySelector('header > div').append(contactNotice);
 const storageKey = 'dragon-story-offline-favourites-v1';
 let favourites = new Set();
 let onlyFavourites = false;
