@@ -11,12 +11,17 @@ function addFullscreenWatermark() {
 }
 
 const all = window.DRAGONS;
+const ticketNames = window.TICKET_DRAGON_NAMES || [];
+const dragonsByExactName = new Map(all.map(dragon => [dragon.name, dragon]));
+const ticketDragons = ticketNames.map(name => dragonsByExactName.get(name)).filter(Boolean);
+if (ticketDragons.length !== ticketNames.length) console.error('Ticket Temple dragon mapping is incomplete.');
 const q = id => document.getElementById(id);
 const grid = q('grid');
 const PAGE_SIZE = 60;
 const storageKey = 'dragon-story-offline-favourites-v1';
 let favourites = new Set();
 let onlyFavourites = false;
+let catalogueMode = 'all';
 let visibleCount = PAGE_SIZE;
 let imageObserver = null;
 
@@ -74,6 +79,16 @@ function refreshFavouritesToggle() {
   button.textContent = onlyFavourites
     ? `\u2605 \u4ec5\u770b\u6536\u85cf(${favourites.size})`
     : `\u2606 \u6536\u85cf(${favourites.size})`;
+}
+
+function refreshCatalogueTabs() {
+  const allButton = q('all-catalog-toggle');
+  const ticketButton = q('ticket-catalog-toggle');
+  const ticketActive = catalogueMode === 'ticket';
+  allButton.classList.toggle('active', !ticketActive);
+  ticketButton.classList.toggle('active', ticketActive);
+  allButton.setAttribute('aria-pressed', String(!ticketActive));
+  ticketButton.setAttribute('aria-pressed', String(ticketActive));
 }
 
 function refreshElementPicker() {
@@ -179,10 +194,11 @@ function deferredImage(src, alt) {
 }
 
 function matchingDragons() {
+  const catalogue = catalogueMode === 'ticket' ? ticketDragons : all;
   const term = q('search').value.trim().toLowerCase();
   const rarity = q('rarity').value;
   const element = q('element').value;
-  return all.filter(dragon =>
+  return catalogue.filter(dragon =>
     (!onlyFavourites || favourites.has(dragonKey(dragon))) &&
     (!rarity || dragon.rarity === rarity) &&
     (!element || dragon.elements.includes(element)) &&
@@ -192,7 +208,8 @@ function matchingDragons() {
 
 function cardFor(dragon) {
   const node = q('card').content.cloneNode(true);
-  node.querySelector('h2').textContent = dragon.name;
+  const ticketNumber = catalogueMode === 'ticket' ? ticketDragons.indexOf(dragon) + 1 : 0;
+  node.querySelector('h2').textContent = ticketNumber ? `${ticketNumber}. ${dragon.name}` : dragon.name;
   const origin = node.querySelector('.origin');
   if (dragon.source) origin.href = dragon.source;
   else origin.hidden = true;
@@ -255,8 +272,10 @@ document.body.append(backToTop);
 function draw() {
   const list = matchingDragons();
   const shown = list.slice(0, visibleCount);
+  const catalogueCount = catalogueMode === 'ticket' ? ticketDragons.length : all.length;
+  const catalogueLabel = catalogueMode === 'ticket' ? `Ticket Temple \u00b7 ${catalogueCount}` : `\u5168\u90e8\u56fe\u9274 \u00b7 ${catalogueCount}`;
   resetImageObserver();
-  q('summary').textContent = `\u5171 ${all.length.toLocaleString()} \u6761\u9f99\uff1b\u5f53\u524d\u7b5b\u9009 ${list.length.toLocaleString()} \u6761\uff0c\u5df2\u663e\u793a ${shown.length.toLocaleString()} \u6761\u3002`;
+  q('summary').textContent = `${catalogueLabel}\uff1b\u5f53\u524d\u7b5b\u9009 ${list.length.toLocaleString()} \u6761\uff0c\u5df2\u663e\u793a ${shown.length.toLocaleString()} \u6761\u3002`;
   const fragment = document.createDocumentFragment();
   shown.forEach(dragon => fragment.append(cardFor(dragon)));
   grid.replaceChildren(fragment);
@@ -281,6 +300,16 @@ q('favorites-toggle').addEventListener('click', () => {
   refreshFavouritesToggle();
   resetAndDraw();
 });
+q('all-catalog-toggle').addEventListener('click', () => {
+  catalogueMode = 'all';
+  refreshCatalogueTabs();
+  resetAndDraw();
+});
+q('ticket-catalog-toggle').addEventListener('click', () => {
+  catalogueMode = 'ticket';
+  refreshCatalogueTabs();
+  resetAndDraw();
+});
 
 buildElementPicker();
 addFullscreenWatermark();
@@ -288,8 +317,9 @@ document.querySelectorAll('.watermark-overlay span').forEach(item => {
   item.style.opacity = window.innerWidth <= 650 ? '.18' : '.19';
 });
 refreshFavouritesToggle();
+refreshCatalogueTabs();
 draw();
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20260726-fast5', { scope: './' }).catch(() => {}));
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20260726-fast6', { scope: './' }).catch(() => {}));
 }

@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>&#x9F99;&#x65CF;&#x7269;&#x8BED;&#x56FE;&#x9274; - &#x7F51;&#x9875;&#x7248;</title>
-  <link rel="stylesheet" href="style.css?v=20260726-fast5">
+  <link rel="stylesheet" href="style.css?v=20260726-fast6">
+  <style>.catalog-tabs{display:flex;gap:6px;flex:0 0 auto}.catalog-tab{min-height:46px;padding:10px 12px;border:1px solid #d7dce6;border-radius:8px;background:#fff;color:#3c4c69;font:inherit;white-space:nowrap;cursor:pointer}.catalog-tab.active{border-color:#b88acb;background:#f0e7f5;color:#673e7a;font-weight:700}@media(max-width:650px){.catalog-tabs{display:grid;grid-template-columns:1fr 1fr}.catalog-tab{width:100%}}</style>
 </head>
 <body>
   <header><div>
@@ -15,6 +16,7 @@
   </div></header>
   <main>
     <section class="tools">
+      <div class="catalog-tabs" role="group" aria-label="&#x56FE;&#x9274;&#x5206;&#x7C7B;"><button id="all-catalog-toggle" class="catalog-tab active" type="button" aria-pressed="true">&#x5168;&#x90E8;&#x56FE;&#x9274;</button><button id="ticket-catalog-toggle" class="catalog-tab" type="button" aria-pressed="false">Ticket Temple &#183; 105</button></div>
       <input id="search" type="search" placeholder="&#x641C;&#x7D22;&#x9F99;&#x540D;&#x79F0;&#x3001;&#x5C5E;&#x6027;&#x6216;&#x7A00;&#x6709;&#x5EA6;&#x2026;">
       <select id="rarity"><option value="">&#x6240;&#x6709;&#x7A00;&#x6709;&#x5EA6;</option></select>
       <button id="favorites-toggle" class="favorites-toggle" type="button" aria-pressed="false"></button>
@@ -24,6 +26,6 @@
     <section id="grid" class="grid"></section>
   </main>
   <template id="card"><article class="card"><div class="heading"><h2></h2><a class="origin" target="_blank" rel="noreferrer">Fandom &#x9875;&#x9762; &#x2197;</a></div><div class="facts"><div><span>&#x5C5E;&#x6027;</span><p class="elements"></p></div><div><span>&#x7A00;&#x6709;&#x5EA6;</span><p class="rarity"></p></div></div><div class="forms"></div></article></template>
-  <script src="data.js?v=20260726-fast3"></script><script src="app.js?v=20260726-fast5"></script>
+  <script src="data.js?v=20260726-fast3"></script><script src="ticket-dragons.js?v=20260726-fast6"></script><script src="app.js?v=20260726-fast6"></script>
 </body>
 </html>
