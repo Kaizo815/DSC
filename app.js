@@ -20,6 +20,15 @@ if (eyebrow) {
   eyebrow.append(notice);
 }
 const grid = q('grid');
+const contactNotice = document.createElement('footer');
+contactNotice.style.cssText = 'margin-top:28px;padding:14px 0 2px;border-top:1px solid #d7dce6;color:#69748a;font-size:12px;text-align:center';
+contactNotice.append('\u672c\u7ad9\u4e3a\u975e\u5b98\u65b9\u7c89\u4e1d\u6574\u7406\u3002\u5982\u6d89\u53ca\u4fb5\u6743\uff0c\u8bf7\u8054\u7cfb\uff1a');
+const contactEmail = document.createElement('a');
+contactEmail.href = 'mailto:3121534446@qq.com';
+contactEmail.textContent = '3121534446@qq.com';
+contactEmail.style.cssText = 'color:#52627f;font-weight:700;text-decoration:none';
+contactNotice.append(contactEmail);
+document.querySelector('main').append(contactNotice);
 const storageKey = 'dragon-story-offline-favourites-v1';
 let favourites = new Set();
 let onlyFavourites = false;
