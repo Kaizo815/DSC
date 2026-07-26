@@ -1,10 +1,10 @@
-const CACHE_NAME = 'dragon-story-shell-v2';
+const CACHE_NAME = 'dragon-story-shell-v3';
 const CORE_FILES = [
   './',
   './index.html',
   './style.css',
-  './data.js?v=20260726-fast2',
-  './app.js?v=20260726-fast2',
+  './data.js?v=20260726-fast3',
+  './app.js?v=20260726-fast3',
 ];
 
 self.addEventListener('install', event => {

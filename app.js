@@ -242,6 +242,16 @@ loadMore.addEventListener('click', () => {
 });
 grid.after(loadMore);
 
+const backToTop = document.createElement('button');
+backToTop.type = 'button';
+backToTop.textContent = '\u2191 \u8fd4\u56de\u9876\u90e8';
+backToTop.setAttribute('aria-label', '\u8fd4\u56de\u9876\u90e8');
+backToTop.hidden = true;
+backToTop.style.cssText = 'position:fixed;right:20px;bottom:20px;z-index:10000;padding:10px 13px;border:1px solid #b88acb;border-radius:999px;background:#fff;color:#673e7a;font:inherit;font-size:13px;font-weight:700;box-shadow:0 4px 14px #1720332b;cursor:pointer';
+backToTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+window.addEventListener('scroll', () => { backToTop.hidden = window.scrollY < 420; }, { passive: true });
+document.body.append(backToTop);
+
 function draw() {
   const list = matchingDragons();
   const shown = list.slice(0, visibleCount);
@@ -277,5 +287,5 @@ refreshFavouritesToggle();
 draw();
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20260726-fast2', { scope: './' }).catch(() => {}));
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20260726-fast3', { scope: './' }).catch(() => {}));
 }
