@@ -19,11 +19,11 @@ const q = id => document.getElementById(id);
 const grid = q('grid');
 const PAGE_SIZE = 60;
 const storageKey = 'dragon-story-offline-favourites-v1';
-const languageStorageKey = 'dragon-story-language-v1';
+const languageStorageKey = 'dragon-story-language-v2';
 let favourites = new Set();
 let onlyFavourites = false;
 let catalogueMode = 'all';
-let language = 'zh';
+let language = 'en';
 let visibleCount = PAGE_SIZE;
 let imageObserver = null;
 
@@ -41,7 +41,8 @@ try {
   favourites = new Set();
 }
 try {
-  language = localStorage.getItem(languageStorageKey) === 'en' ? 'en' : 'zh';
+  const savedLanguage = localStorage.getItem(languageStorageKey);
+  language = savedLanguage === 'zh' || savedLanguage === 'en' ? savedLanguage : 'en';
 } catch {}
 
 const dragonKey = dragon => String(dragon.gameId ?? dragon.title ?? dragon.name);
@@ -369,7 +370,7 @@ q('lang-en').addEventListener('click', () => {
 buildElementPicker();
 addFullscreenWatermark();
 document.querySelectorAll('.watermark-overlay span').forEach(item => {
-  item.style.opacity = window.innerWidth <= 650 ? '.18' : '.19';
+  item.style.opacity = window.innerWidth <= 650 ? '.15' : '.16';
 });
 refreshFavouritesToggle();
 refreshCatalogueTabs();
@@ -377,5 +378,5 @@ refreshLanguageUi();
 draw();
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20260727-skeleton4', { scope: './' }).catch(() => {}));
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20260727-default-en5', { scope: './' }).catch(() => {}));
 }
