@@ -19,9 +19,11 @@ const q = id => document.getElementById(id);
 const grid = q('grid');
 const PAGE_SIZE = 60;
 const storageKey = 'dragon-story-offline-favourites-v1';
+const languageStorageKey = 'dragon-story-language-v1';
 let favourites = new Set();
 let onlyFavourites = false;
 let catalogueMode = 'all';
+let language = 'zh';
 let visibleCount = PAGE_SIZE;
 let imageObserver = null;
 
@@ -38,9 +40,15 @@ try {
 } catch {
   favourites = new Set();
 }
+try {
+  language = localStorage.getItem(languageStorageKey) === 'en' ? 'en' : 'zh';
+} catch {}
 
 const dragonKey = dragon => String(dragon.gameId ?? dragon.title ?? dragon.name);
 const saveFavourites = () => localStorage.setItem(storageKey, JSON.stringify([...favourites]));
+const nameFor = dragon => language === 'zh' ? dragon.nameZh : dragon.name;
+const rarityFor = dragon => language === 'zh' ? dragon.rarityZh : dragon.rarity;
+const isChinese = () => language === 'zh';
 
 function options(id, values) {
   for (const value of [...values].sort()) {
@@ -77,8 +85,31 @@ function refreshFavouritesToggle() {
   button.classList.toggle('active', onlyFavourites);
   button.setAttribute('aria-pressed', String(onlyFavourites));
   button.textContent = onlyFavourites
-    ? `\u2605 \u4ec5\u770b\u6536\u85cf(${favourites.size})`
-    : `\u2606 \u6536\u85cf(${favourites.size})`;
+    ? (isChinese() ? `\u2605 \u4ec5\u770b\u6536\u85cf(${favourites.size})` : `\u2605 Favorites only (${favourites.size})`)
+    : (isChinese() ? `\u2606 \u6536\u85cf(${favourites.size})` : `\u2606 Favorites (${favourites.size})`);
+}
+
+function refreshLanguageUi() {
+  const chinese = isChinese();
+  q('lang-zh').classList.toggle('active', chinese);
+  q('lang-en').classList.toggle('active', !chinese);
+  q('lang-zh').setAttribute('aria-pressed', String(chinese));
+  q('lang-en').setAttribute('aria-pressed', String(!chinese));
+  q('machine-translation-note').hidden = !chinese;
+  q('search').placeholder = chinese ? '\u641c\u7d22\u4e2d\u82f1\u6587\u9f99\u540d\u3001\u5c5e\u6027\u6216\u7a00\u6709\u5ea6\u2026' : 'Search Chinese/English dragon names, elements, or rarity...';
+  q('rarity').options[0].textContent = chinese ? '\u6240\u6709\u7a00\u6709\u5ea6' : 'All rarities';
+  [...q('rarity').options].slice(1).forEach(option => {
+    const dragon = all.find(item => item.rarity === option.value);
+    option.textContent = chinese ? dragon?.rarityZh || option.value : option.value;
+  });
+  q('all-catalog-toggle').textContent = chinese ? '\u5168\u90e8\u56fe\u9274' : 'All dragons';
+  q('ticket-catalog-toggle').textContent = 'Ticket Temple \u00b7 105';
+  backToTop.textContent = chinese ? '\u2191 \u8fd4\u56de\u9876\u90e8' : '\u2191 Back to top';
+  backToTop.setAttribute('aria-label', chinese ? '\u8fd4\u56de\u9876\u90e8' : 'Back to top');
+  const allElementChoice = q('element-options').querySelector('.element-choice[data-value=""] span');
+  if (allElementChoice) allElementChoice.textContent = chinese ? '\u6240\u6709\u5c5e\u6027' : 'All elements';
+  refreshFavouritesToggle();
+  refreshElementPicker();
 }
 
 function refreshCatalogueTabs() {
@@ -98,7 +129,7 @@ function refreshElementPicker() {
   const icon = iconFor(selected);
   if (icon) toggle.append(icon);
   const label = document.createElement('span');
-  label.textContent = selected || '\u6240\u6709\u5c5e\u6027';
+  label.textContent = selected || (isChinese() ? '\u6240\u6709\u5c5e\u6027' : 'All elements');
   toggle.append(label);
   const arrow = document.createElement('span');
   arrow.textContent = ' \u25be';
@@ -134,7 +165,7 @@ function buildElementPicker() {
     });
     panel.append(button);
   };
-  addChoice('', '\u6240\u6709\u5c5e\u6027');
+  addChoice('', isChinese() ? '\u6240\u6709\u5c5e\u6027' : 'All elements');
   elementValues.forEach(value => addChoice(value, value));
   q('element-toggle').addEventListener('click', () => {
     panel.hidden = !panel.hidden;
@@ -151,7 +182,9 @@ function favouriteButton(dragon) {
   const active = favourites.has(key);
   button.classList.toggle('active', active);
   button.setAttribute('aria-pressed', String(active));
-  button.textContent = active ? '\u2605 \u5df2\u6536\u85cf' : '\u2606 \u6536\u85cf';
+  button.textContent = active
+    ? (isChinese() ? '\u2605 \u5df2\u6536\u85cf' : '\u2605 Saved')
+    : (isChinese() ? '\u2606 \u6536\u85cf' : '\u2606 Save');
   button.addEventListener('click', () => {
     if (favourites.has(key)) favourites.delete(key);
     else favourites.add(key);
@@ -202,19 +235,23 @@ function matchingDragons() {
     (!onlyFavourites || favourites.has(dragonKey(dragon))) &&
     (!rarity || dragon.rarity === rarity) &&
     (!element || dragon.elements.includes(element)) &&
-    (!term || [dragon.name, dragon.title, dragon.rarity, ...dragon.elements].join(' ').toLowerCase().includes(term))
+    (!term || [dragon.name, dragon.nameZh, dragon.title, dragon.rarity, dragon.rarityZh, ...dragon.elements].join(' ').toLowerCase().includes(term))
   );
 }
 
 function cardFor(dragon) {
   const node = q('card').content.cloneNode(true);
   const ticketNumber = catalogueMode === 'ticket' ? ticketDragons.indexOf(dragon) + 1 : 0;
-  node.querySelector('h2').textContent = ticketNumber ? `${ticketNumber}. ${dragon.name}` : dragon.name;
+  node.querySelector('h2').textContent = ticketNumber ? `${ticketNumber}. ${nameFor(dragon)}` : nameFor(dragon);
   const origin = node.querySelector('.origin');
+  origin.textContent = isChinese() ? 'Fandom \u9875\u9762 \u2197' : 'Fandom Page \u2197';
   if (dragon.source) origin.href = dragon.source;
   else origin.hidden = true;
   origin.before(favouriteButton(dragon));
-  node.querySelector('.rarity').textContent = dragon.rarity;
+  const factLabels = node.querySelectorAll('.facts span');
+  factLabels[0].textContent = isChinese() ? '\u5c5e\u6027' : 'Elements';
+  factLabels[1].textContent = isChinese() ? '\u7a00\u6709\u5ea6' : 'Rarity';
+  node.querySelector('.rarity').textContent = rarityFor(dragon);
   const elements = node.querySelector('.elements');
   dragon.elements.forEach((name, index) => {
     const span = document.createElement('span');
@@ -234,11 +271,11 @@ function cardFor(dragon) {
   for (const stage of ['Baby', 'Juvenile', 'Adult', 'Epic']) {
     const figure = document.createElement('figure');
     figure.className = 'form';
-    if (dragon.forms?.[stage]) figure.append(deferredImage(dragon.forms[stage], `${dragon.name} - ${stage}`));
+    if (dragon.forms?.[stage]) figure.append(deferredImage(dragon.forms[stage], `${nameFor(dragon)} - ${stage}`));
     else {
       const missing = document.createElement('div');
       missing.className = 'missing';
-      missing.textContent = '\u65e0\u56fe\u7247';
+      missing.textContent = isChinese() ? '\u65e0\u56fe\u7247' : 'No image';
       figure.append(missing);
     }
     const caption = document.createElement('figcaption');
@@ -273,16 +310,22 @@ function draw() {
   const list = matchingDragons();
   const shown = list.slice(0, visibleCount);
   const catalogueCount = catalogueMode === 'ticket' ? ticketDragons.length : all.length;
-  const catalogueLabel = catalogueMode === 'ticket' ? `Ticket Temple \u00b7 ${catalogueCount}` : `\u5168\u90e8\u56fe\u9274 \u00b7 ${catalogueCount}`;
+  const catalogueLabel = catalogueMode === 'ticket'
+    ? `Ticket Temple \u00b7 ${catalogueCount}`
+    : (isChinese() ? `\u5168\u90e8\u56fe\u9274 \u00b7 ${catalogueCount}` : `All dragons \u00b7 ${catalogueCount}`);
   resetImageObserver();
-  q('summary').textContent = `${catalogueLabel}\uff1b\u5f53\u524d\u7b5b\u9009 ${list.length.toLocaleString()} \u6761\uff0c\u5df2\u663e\u793a ${shown.length.toLocaleString()} \u6761\u3002`;
+  q('summary').textContent = isChinese()
+    ? `${catalogueLabel}\uff1b\u5f53\u524d\u7b5b\u9009 ${list.length.toLocaleString()} \u6761\uff0c\u5df2\u663e\u793a ${shown.length.toLocaleString()} \u6761\u3002`
+    : `${catalogueLabel}; ${list.length.toLocaleString()} matched, ${shown.length.toLocaleString()} shown.`;
   const fragment = document.createDocumentFragment();
   shown.forEach(dragon => fragment.append(cardFor(dragon)));
   grid.replaceChildren(fragment);
   const remaining = list.length - shown.length;
   loadMore.hidden = remaining <= 0;
   loadMore.style.display = remaining > 0 ? 'block' : 'none';
-  if (remaining > 0) loadMore.textContent = `\u52a0\u8f7d\u66f4\u591a\uff08\u8fd8\u6709 ${remaining.toLocaleString()} \u6761\uff09`;
+  if (remaining > 0) loadMore.textContent = isChinese()
+    ? `\u52a0\u8f7d\u66f4\u591a\uff08\u8fd8\u6709 ${remaining.toLocaleString()} \u6761\uff09`
+    : `Load more (${remaining.toLocaleString()} remaining)`;
 }
 
 let searchTimer;
@@ -310,6 +353,18 @@ q('ticket-catalog-toggle').addEventListener('click', () => {
   refreshCatalogueTabs();
   resetAndDraw();
 });
+q('lang-zh').addEventListener('click', () => {
+  language = 'zh';
+  localStorage.setItem(languageStorageKey, language);
+  refreshLanguageUi();
+  draw();
+});
+q('lang-en').addEventListener('click', () => {
+  language = 'en';
+  localStorage.setItem(languageStorageKey, language);
+  refreshLanguageUi();
+  draw();
+});
 
 buildElementPicker();
 addFullscreenWatermark();
@@ -318,8 +373,9 @@ document.querySelectorAll('.watermark-overlay span').forEach(item => {
 });
 refreshFavouritesToggle();
 refreshCatalogueTabs();
+refreshLanguageUi();
 draw();
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20260726-fast6', { scope: './' }).catch(() => {}));
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20260727-lang1', { scope: './' }).catch(() => {}));
 }
