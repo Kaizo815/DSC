@@ -1,9 +1,9 @@
-const CACHE_NAME = 'dragon-story-shell-v7';
+const CACHE_NAME = 'dragon-story-shell-v8';
 const CORE_FILES = [
   './',
   './index.html',
   './style.css?v=20260726-fast6',
-  './data.js?v=20260727-lang1',
+  './data.js?v=20260727-names2',
   './ticket-dragons.js?v=20260727-lang1',
   './app.js?v=20260727-lang1',
 ];
