@@ -19,9 +19,13 @@ const q = id => document.getElementById(id);
 const grid = q('grid');
 const PAGE_SIZE = 60;
 const storageKey = 'dragon-story-offline-favourites-v1';
+const favouriteGroupsStorageKey = 'dragon-story-favourite-groups-v1';
 const languageStorageKey = 'dragon-story-language-v2';
 let favourites = new Set();
+let favouriteGroups = [];
 let onlyFavourites = false;
+let activeFavouriteGroupId = null;
+let groupDialogDragon = null;
 let catalogueMode = 'all';
 let language = 'en';
 const selectedRarities = new Set();
@@ -43,12 +47,66 @@ try {
   favourites = new Set();
 }
 try {
+  const savedGroups = JSON.parse(localStorage.getItem(favouriteGroupsStorageKey) || '[]');
+  if (Array.isArray(savedGroups)) {
+    favouriteGroups = savedGroups
+      .filter(group => group && typeof group.id === 'string' && typeof group.name === 'string' && group.name.trim())
+      .map(group => ({
+        id: group.id,
+        name: group.name.trim().slice(0, 30),
+        members: new Set((Array.isArray(group.members) ? group.members : []).map(String).filter(key => favourites.has(key))),
+      }));
+  }
+} catch {
+  favouriteGroups = [];
+}
+try {
   const savedLanguage = localStorage.getItem(languageStorageKey);
   language = savedLanguage === 'zh' || savedLanguage === 'en' ? savedLanguage : 'en';
 } catch {}
 
 const dragonKey = dragon => String(dragon.gameId ?? dragon.title ?? dragon.name);
 const saveFavourites = () => localStorage.setItem(storageKey, JSON.stringify([...favourites]));
+const saveFavouriteGroups = () => localStorage.setItem(favouriteGroupsStorageKey, JSON.stringify(
+  favouriteGroups.map(group => ({ id: group.id, name: group.name, members: [...group.members] }))
+));
+const favouriteGroupById = id => favouriteGroups.find(group => group.id === id);
+const groupsForDragonKey = key => favouriteGroups.filter(group => group.members.has(key));
+const removeDragonFromFavouriteGroups = key => {
+  let changed = false;
+  favouriteGroups.forEach(group => {
+    if (group.members.delete(key)) changed = true;
+  });
+  return changed;
+};
+const makeFavouriteGroupId = () => globalThis.crypto?.randomUUID?.() || `group-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const cleanFavouriteGroupName = value => String(value || '').trim().replace(/\s+/g, ' ').slice(0, 30);
+const favouriteGroupNameError = (name, exceptId = null) => {
+  if (!name) return '\u8bf7\u8f93\u5165\u5206\u7ec4\u540d\u3002';
+  if (favouriteGroups.some(group => group.id !== exceptId && group.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+    return '\u5df2\u6709\u540c\u540d\u5206\u7ec4\u3002';
+  }
+  return '';
+};
+function createFavouriteGroup(rawName, memberKey = null) {
+  const name = cleanFavouriteGroupName(rawName);
+  const error = favouriteGroupNameError(name);
+  if (error) return { group: null, error };
+  const group = { id: makeFavouriteGroupId(), name, members: new Set() };
+  if (memberKey) {
+    group.members.add(memberKey);
+    favourites.add(memberKey);
+    saveFavourites();
+  }
+  favouriteGroups.push(group);
+  saveFavouriteGroups();
+  return { group, error: '' };
+}
+function setFavouriteGroupStatus(id, message, error = false) {
+  const status = q(id);
+  status.textContent = message;
+  status.classList.toggle('error', error);
+}
 const nameFor = dragon => language === 'zh' ? dragon.nameZh : dragon.name;
 const rarityFor = dragon => language === 'zh' ? dragon.rarityZh : dragon.rarity;
 const isChinese = () => language === 'zh';
@@ -75,9 +133,148 @@ function iconFor(element) {
 
 function refreshFavouritesToggle() {
   const button = q('favorites-toggle');
-  button.classList.toggle('active', onlyFavourites);
-  button.setAttribute('aria-pressed', String(onlyFavourites));
-  button.textContent = onlyFavourites ? `\u2605 \u4ec5\u770b\u6536\u85cf(${favourites.size})` : `\u2606 \u6536\u85cf(${favourites.size})`;
+  const active = onlyFavourites && !activeFavouriteGroupId;
+  button.classList.toggle('active', active);
+  button.setAttribute('aria-pressed', String(active));
+  button.textContent = active ? `\u2605 \u4ec5\u770b\u6536\u85cf(${favourites.size})` : `\u2606 \u6536\u85cf(${favourites.size})`;
+}
+
+function refreshFavouriteGroupPicker() {
+  const toggle = q('favourite-group-toggle');
+  const list = q('favourite-group-list');
+  const activeGroup = onlyFavourites && activeFavouriteGroupId ? favouriteGroupById(activeFavouriteGroupId) : null;
+  const label = document.createElement('span');
+  label.textContent = activeGroup ? `${activeGroup.name}(${activeGroup.members.size})` : '\u6536\u85cf\u5206\u7ec4';
+  const arrow = document.createElement('span');
+  arrow.textContent = ' \u25be';
+  toggle.replaceChildren(label, arrow);
+  toggle.classList.toggle('active', Boolean(activeGroup));
+  toggle.title = activeGroup?.name || '\u521b\u5efa\u3001\u7b5b\u9009\u548c\u7ba1\u7406\u6536\u85cf\u5206\u7ec4';
+  list.replaceChildren();
+
+  const allRow = document.createElement('div');
+  allRow.className = 'favourite-group-row';
+  const allButton = document.createElement('button');
+  allButton.type = 'button';
+  allButton.className = 'filter-choice favourite-group-choice favourite-group-all';
+  const allActive = onlyFavourites && !activeFavouriteGroupId;
+  allButton.classList.toggle('selected', allActive);
+  allButton.setAttribute('aria-pressed', String(allActive));
+  const allLabel = document.createElement('span');
+  allLabel.textContent = `\u5168\u90e8\u6536\u85cf(${favourites.size})`;
+  allButton.append(allLabel);
+  allButton.addEventListener('click', () => {
+    onlyFavourites = !allActive;
+    activeFavouriteGroupId = null;
+    setPickerOpen('favourite-group-options', 'favourite-group-toggle', false);
+    refreshFavouritesToggle();
+    refreshFavouriteGroupPicker();
+    resetAndDraw();
+  });
+  allRow.append(allButton);
+  list.append(allRow);
+
+  if (favouriteGroups.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'favourite-group-empty';
+    empty.textContent = '\u8fd8\u6ca1\u6709\u5206\u7ec4\uff0c\u53ef\u5728\u4e0b\u65b9\u65b0\u5efa\u3002';
+    list.append(empty);
+  }
+
+  favouriteGroups.forEach(group => {
+    const row = document.createElement('div');
+    row.className = 'favourite-group-row';
+    const choice = document.createElement('button');
+    choice.type = 'button';
+    choice.className = 'filter-choice favourite-group-choice';
+    const selected = onlyFavourites && activeFavouriteGroupId === group.id;
+    choice.classList.toggle('selected', selected);
+    choice.setAttribute('aria-pressed', String(selected));
+    const text = document.createElement('span');
+    text.textContent = `${group.name}(${group.members.size})`;
+    choice.append(text);
+    choice.addEventListener('click', () => {
+      onlyFavourites = !selected;
+      activeFavouriteGroupId = selected ? null : group.id;
+      setPickerOpen('favourite-group-options', 'favourite-group-toggle', false);
+      refreshFavouritesToggle();
+      refreshFavouriteGroupPicker();
+      resetAndDraw();
+    });
+
+    const rename = document.createElement('button');
+    rename.type = 'button';
+    rename.className = 'favourite-group-action';
+    rename.textContent = '\u270e';
+    rename.title = '\u6539\u540d';
+    rename.setAttribute('aria-label', `\u91cd\u547d\u540d${group.name}`);
+    rename.addEventListener('click', event => {
+      event.stopPropagation();
+      const nextName = window.prompt('\u8bf7\u8f93\u5165\u65b0\u5206\u7ec4\u540d\uff1a', group.name);
+      if (nextName === null) return;
+      const name = cleanFavouriteGroupName(nextName);
+      const error = favouriteGroupNameError(name, group.id);
+      if (error) {
+        setFavouriteGroupStatus('favourite-group-status', error, true);
+        return;
+      }
+      group.name = name;
+      saveFavouriteGroups();
+      setFavouriteGroupStatus('favourite-group-status', '\u5206\u7ec4\u5df2\u6539\u540d\u3002');
+      refreshFavouriteGroupPicker();
+    });
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'favourite-group-action';
+    remove.textContent = '\u00d7';
+    remove.title = '\u5220\u9664';
+    remove.setAttribute('aria-label', `\u5220\u9664${group.name}`);
+    remove.addEventListener('click', event => {
+      event.stopPropagation();
+      if (!window.confirm(`\u5220\u9664\u5206\u7ec4\u201c${group.name}\u201d\uff1f\u9f99\u4ecd\u4f1a\u4fdd\u7559\u5728\u6536\u85cf\u4e2d\u3002`)) return;
+      favouriteGroups = favouriteGroups.filter(item => item.id !== group.id);
+      if (activeFavouriteGroupId === group.id) {
+        activeFavouriteGroupId = null;
+        onlyFavourites = true;
+      }
+      saveFavouriteGroups();
+      setFavouriteGroupStatus('favourite-group-status', '\u5206\u7ec4\u5df2\u5220\u9664\uff0c\u6536\u85cf\u672a\u5220\u9664\u3002');
+      refreshFavouritesToggle();
+      refreshFavouriteGroupPicker();
+      resetAndDraw();
+    });
+
+    row.append(choice, rename, remove);
+    list.append(row);
+  });
+}
+
+function buildFavouriteGroupPicker() {
+  const panel = q('favourite-group-options');
+  const input = q('favourite-group-name');
+  q('favourite-group-toggle').addEventListener('click', () => {
+    const open = panel.hidden;
+    setPickerOpen('rarity-options', 'rarity-toggle', false);
+    setPickerOpen('element-options', 'element-toggle', false);
+    setPickerOpen('favourite-group-options', 'favourite-group-toggle', open);
+  });
+  q('favourite-group-add').addEventListener('click', () => {
+    const result = createFavouriteGroup(input.value);
+    if (result.error) {
+      setFavouriteGroupStatus('favourite-group-status', result.error, true);
+      return;
+    }
+    input.value = '';
+    setFavouriteGroupStatus('favourite-group-status', `\u5df2\u65b0\u5efa\u201c${result.group.name}\u201d\u3002`);
+    refreshFavouriteGroupPicker();
+  });
+  input.addEventListener('keydown', event => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    q('favourite-group-add').click();
+  });
+  refreshFavouriteGroupPicker();
 }
 
 function rarityLabel(value) {
@@ -99,8 +296,10 @@ function refreshLanguageUi() {
   backToTop.textContent = '\u2191 \u8fd4\u56de\u9876\u90e8';
   backToTop.setAttribute('aria-label', '\u8fd4\u56de\u9876\u90e8');
   refreshFavouritesToggle();
+  refreshFavouriteGroupPicker();
   refreshRarityPicker();
   refreshElementPicker();
+  if (q('favourite-group-dialog').open) refreshFavouriteGroupDialog();
 }
 
 function refreshCatalogueTabs() {
@@ -188,6 +387,7 @@ function buildRarityPicker() {
   q('rarity-toggle').addEventListener('click', () => {
     const open = panel.hidden;
     setPickerOpen('element-options', 'element-toggle', false);
+    setPickerOpen('favourite-group-options', 'favourite-group-toggle', false);
     setPickerOpen('rarity-options', 'rarity-toggle', open);
   });
   refreshRarityPicker();
@@ -219,9 +419,103 @@ function buildElementPicker() {
   q('element-toggle').addEventListener('click', () => {
     const open = panel.hidden;
     setPickerOpen('rarity-options', 'rarity-toggle', false);
+    setPickerOpen('favourite-group-options', 'favourite-group-toggle', false);
     setPickerOpen('element-options', 'element-toggle', open);
   });
   refreshElementPicker();
+}
+
+function refreshFavouriteGroupDialog() {
+  if (!groupDialogDragon) return;
+  const key = dragonKey(groupDialogDragon);
+  const options = q('favourite-group-dialog-options');
+  q('favourite-group-dialog-dragon').textContent = `${nameFor(groupDialogDragon)}\uff1a\u9009\u62e9\u8981\u52a0\u5165\u7684\u5206\u7ec4`;
+  options.replaceChildren();
+  if (favouriteGroups.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'favourite-group-empty';
+    empty.textContent = '\u8fd8\u6ca1\u6709\u5206\u7ec4\uff0c\u53ef\u5728\u4e0b\u65b9\u65b0\u5efa\u5e76\u52a0\u5165\u3002';
+    options.append(empty);
+    return;
+  }
+  favouriteGroups.forEach(group => {
+    const label = document.createElement('label');
+    label.className = 'favourite-group-dialog-option';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = group.members.has(key);
+    const name = document.createElement('span');
+    name.textContent = group.name;
+    const count = document.createElement('small');
+    count.textContent = `${group.members.size}\u6761`;
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) {
+        group.members.add(key);
+        favourites.add(key);
+      } else {
+        group.members.delete(key);
+      }
+      saveFavourites();
+      saveFavouriteGroups();
+      setFavouriteGroupStatus('favourite-group-dialog-status', checkbox.checked ? `\u5df2\u52a0\u5165\u201c${group.name}\u201d\u3002` : `\u5df2\u79fb\u51fa\u201c${group.name}\u201d\u3002`);
+      refreshFavouritesToggle();
+      refreshFavouriteGroupPicker();
+      refreshFavouriteGroupDialog();
+      draw();
+    });
+    label.append(checkbox, name, count);
+    options.append(label);
+  });
+}
+
+function openFavouriteGroupDialog(dragon) {
+  groupDialogDragon = dragon;
+  setFavouriteGroupStatus('favourite-group-dialog-status', '');
+  q('favourite-group-dialog-name').value = '';
+  refreshFavouriteGroupDialog();
+  q('favourite-group-dialog').showModal();
+}
+
+function buildFavouriteGroupDialog() {
+  const dialog = q('favourite-group-dialog');
+  const input = q('favourite-group-dialog-name');
+  q('favourite-group-dialog-close').addEventListener('click', () => dialog.close());
+  q('favourite-group-dialog-add').addEventListener('click', () => {
+    if (!groupDialogDragon) return;
+    const result = createFavouriteGroup(input.value, dragonKey(groupDialogDragon));
+    if (result.error) {
+      setFavouriteGroupStatus('favourite-group-dialog-status', result.error, true);
+      return;
+    }
+    input.value = '';
+    setFavouriteGroupStatus('favourite-group-dialog-status', `\u5df2\u65b0\u5efa\u5e76\u52a0\u5165\u201c${result.group.name}\u201d\u3002`);
+    refreshFavouritesToggle();
+    refreshFavouriteGroupPicker();
+    refreshFavouriteGroupDialog();
+    draw();
+  });
+  input.addEventListener('keydown', event => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    q('favourite-group-dialog-add').click();
+  });
+  dialog.addEventListener('click', event => {
+    if (event.target === dialog) dialog.close();
+  });
+}
+
+function favouriteGroupButton(dragon) {
+  const key = dragonKey(dragon);
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'favorite-group-button';
+  const count = groupsForDragonKey(key).length;
+  button.classList.toggle('active', count > 0);
+  button.textContent = count ? `\u5206\u7ec4(${count})` : '\u5206\u7ec4';
+  button.setAttribute('aria-haspopup', 'dialog');
+  button.setAttribute('aria-label', `\u7ba1\u7406${nameFor(dragon)}\u7684\u6536\u85cf\u5206\u7ec4`);
+  button.addEventListener('click', () => openFavouriteGroupDialog(dragon));
+  return button;
 }
 
 function favouriteButton(dragon) {
@@ -234,10 +528,15 @@ function favouriteButton(dragon) {
   button.setAttribute('aria-pressed', String(active));
   button.textContent = active ? '\u2605 \u5df2\u6536\u85cf' : '\u2606 \u6536\u85cf';
   button.addEventListener('click', () => {
-    if (favourites.has(key)) favourites.delete(key);
-    else favourites.add(key);
+    if (favourites.has(key)) {
+      favourites.delete(key);
+      if (removeDragonFromFavouriteGroups(key)) saveFavouriteGroups();
+    } else {
+      favourites.add(key);
+    }
     saveFavourites();
     refreshFavouritesToggle();
+    refreshFavouriteGroupPicker();
     draw();
   });
   return button;
@@ -277,12 +576,14 @@ function deferredImage(src, alt) {
 function matchingDragons() {
   const catalogue = catalogueMode === 'ticket' ? ticketDragons : all;
   const term = q('search').value.trim().toLowerCase();
-  return catalogue.filter(dragon =>
-    (!onlyFavourites || favourites.has(dragonKey(dragon))) &&
-    (selectedRarities.size === 0 || selectedRarities.has(dragon.rarity)) &&
-    [...selectedElements].every(element => dragon.elements.includes(element)) &&
-    (!term || [dragon.name, dragon.nameZh, dragon.title, dragon.rarity, dragon.rarityZh, ...dragon.elements].join(' ').toLowerCase().includes(term))
-  );
+  const activeGroup = activeFavouriteGroupId ? favouriteGroupById(activeFavouriteGroupId) : null;
+  return catalogue.filter(dragon => {
+    const key = dragonKey(dragon);
+    return (!onlyFavourites || (activeGroup ? activeGroup.members.has(key) : favourites.has(key))) &&
+      (selectedRarities.size === 0 || selectedRarities.has(dragon.rarity)) &&
+      [...selectedElements].every(element => dragon.elements.includes(element)) &&
+      (!term || [dragon.name, dragon.nameZh, dragon.title, dragon.rarity, dragon.rarityZh, ...dragon.elements].join(' ').toLowerCase().includes(term));
+  });
 }
 
 function cardFor(dragon) {
@@ -293,7 +594,7 @@ function cardFor(dragon) {
   origin.textContent = 'Fandom \u9875\u9762 \u2197';
   if (dragon.source) origin.href = dragon.source;
   else origin.hidden = true;
-  origin.before(favouriteButton(dragon));
+  origin.before(favouriteButton(dragon), favouriteGroupButton(dragon));
   const factLabels = node.querySelectorAll('.facts span');
   factLabels[0].textContent = '\u5c5e\u6027';
   factLabels[1].textContent = '\u7a00\u6709\u5ea6';
@@ -376,8 +677,11 @@ q('search').addEventListener('input', () => {
   searchTimer = setTimeout(resetAndDraw, 120);
 });
 q('favorites-toggle').addEventListener('click', () => {
-  onlyFavourites = !onlyFavourites;
+  const allActive = onlyFavourites && !activeFavouriteGroupId;
+  onlyFavourites = !allActive;
+  activeFavouriteGroupId = null;
   refreshFavouritesToggle();
+  refreshFavouriteGroupPicker();
   resetAndDraw();
 });
 q('all-catalog-toggle').addEventListener('click', () => {
@@ -407,14 +711,18 @@ document.addEventListener('click', event => {
   if (!event.target.closest('.filter-picker')) {
     setPickerOpen('rarity-options', 'rarity-toggle', false);
     setPickerOpen('element-options', 'element-toggle', false);
+    setPickerOpen('favourite-group-options', 'favourite-group-toggle', false);
   }
 });
 document.addEventListener('keydown', event => {
   if (event.key !== 'Escape') return;
   setPickerOpen('rarity-options', 'rarity-toggle', false);
   setPickerOpen('element-options', 'element-toggle', false);
+  setPickerOpen('favourite-group-options', 'favourite-group-toggle', false);
 });
 
+buildFavouriteGroupPicker();
+buildFavouriteGroupDialog();
 buildRarityPicker();
 buildElementPicker();
 addFullscreenWatermark();
@@ -427,5 +735,5 @@ refreshLanguageUi();
 draw();
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20260824-multi-filter1', { scope: './' }).catch(() => {}));
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20260824-favourite-groups1', { scope: './' }).catch(() => {}));
 }
