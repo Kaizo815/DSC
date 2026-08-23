@@ -24,6 +24,8 @@ let favourites = new Set();
 let onlyFavourites = false;
 let catalogueMode = 'all';
 let language = 'en';
+const selectedRarities = new Set();
+const selectedElements = new Set();
 let visibleCount = PAGE_SIZE;
 let imageObserver = null;
 
@@ -51,18 +53,8 @@ const nameFor = dragon => language === 'zh' ? dragon.nameZh : dragon.name;
 const rarityFor = dragon => language === 'zh' ? dragon.rarityZh : dragon.rarity;
 const isChinese = () => language === 'zh';
 
-function options(id, values) {
-  for (const value of [...values].sort()) {
-    const option = document.createElement('option');
-    option.value = value;
-    option.textContent = value;
-    q(id).append(option);
-  }
-}
-
-options('rarity', new Set(all.map(dragon => dragon.rarity)));
+const rarityValues = [...new Set(all.map(dragon => dragon.rarity))].sort();
 const elementValues = [...new Set(all.flatMap(dragon => dragon.elements))].sort();
-options('element', elementValues);
 
 const elementIcons = new Map();
 for (const dragon of all) {
@@ -88,6 +80,12 @@ function refreshFavouritesToggle() {
   button.textContent = onlyFavourites ? `\u2605 \u4ec5\u770b\u6536\u85cf(${favourites.size})` : `\u2606 \u6536\u85cf(${favourites.size})`;
 }
 
+function rarityLabel(value) {
+  if (!value) return '\u6240\u6709\u7a00\u6709\u5ea6';
+  const dragon = all.find(item => item.rarity === value);
+  return isChinese() ? dragon?.rarityZh || value : value;
+}
+
 function refreshLanguageUi() {
   const chinese = isChinese();
   q('lang-zh').classList.toggle('active', chinese);
@@ -96,18 +94,12 @@ function refreshLanguageUi() {
   q('lang-en').setAttribute('aria-pressed', String(!chinese));
   q('machine-translation-note').hidden = !chinese;
   q('search').placeholder = '\u641c\u7d22\u4e2d\u82f1\u6587\u9f99\u540d\u3001\u5c5e\u6027\u6216\u7a00\u6709\u5ea6\u2026';
-  q('rarity').options[0].textContent = '\u6240\u6709\u7a00\u6709\u5ea6';
-  [...q('rarity').options].slice(1).forEach(option => {
-    const dragon = all.find(item => item.rarity === option.value);
-    option.textContent = chinese ? dragon?.rarityZh || option.value : option.value;
-  });
   q('all-catalog-toggle').textContent = '\u5168\u90e8\u56fe\u9274';
   q('ticket-catalog-toggle').textContent = 'Ticket Temple \u00b7 105';
   backToTop.textContent = '\u2191 \u8fd4\u56de\u9876\u90e8';
   backToTop.setAttribute('aria-label', '\u8fd4\u56de\u9876\u90e8');
-  const allElementChoice = q('element-options').querySelector('.element-choice[data-value=""] span');
-  if (allElementChoice) allElementChoice.textContent = '\u6240\u6709\u5c5e\u6027';
   refreshFavouritesToggle();
+  refreshRarityPicker();
   refreshElementPicker();
 }
 
@@ -121,20 +113,44 @@ function refreshCatalogueTabs() {
   ticketButton.setAttribute('aria-pressed', String(ticketActive));
 }
 
+function refreshRarityPicker() {
+  const toggle = q('rarity-toggle');
+  const label = document.createElement('span');
+  if (selectedRarities.size === 0) label.textContent = '\u6240\u6709\u7a00\u6709\u5ea6';
+  else if (selectedRarities.size === 1) label.textContent = rarityLabel([...selectedRarities][0]);
+  else label.textContent = `\u5df2\u9009 ${selectedRarities.size} \u4e2a\u7a00\u6709\u5ea6`;
+  const arrow = document.createElement('span');
+  arrow.textContent = ' \u25be';
+  toggle.replaceChildren(label, arrow);
+  toggle.title = selectedRarities.size ? [...selectedRarities].map(rarityLabel).join('\u3001') : '\u53ef\u591a\u9009';
+  q('rarity-options').querySelectorAll('.rarity-choice').forEach(button => {
+    const selected = button.dataset.value ? selectedRarities.has(button.dataset.value) : selectedRarities.size === 0;
+    button.classList.toggle('selected', selected);
+    button.setAttribute('aria-pressed', String(selected));
+    button.querySelector('span').textContent = rarityLabel(button.dataset.value);
+  });
+}
+
 function refreshElementPicker() {
-  const selected = q('element').value;
   const toggle = q('element-toggle');
   toggle.replaceChildren();
-  const icon = iconFor(selected);
-  if (icon) toggle.append(icon);
+  [...selectedElements].slice(0, 3).forEach(value => {
+    const icon = iconFor(value);
+    if (icon) toggle.append(icon);
+  });
   const label = document.createElement('span');
-  label.textContent = selected || '\u6240\u6709\u5c5e\u6027';
+  if (selectedElements.size === 0) label.textContent = '\u6240\u6709\u5c5e\u6027';
+  else if (selectedElements.size === 1) label.textContent = [...selectedElements][0];
+  else label.textContent = `\u5df2\u9009 ${selectedElements.size} \u4e2a\u5c5e\u6027`;
   toggle.append(label);
   const arrow = document.createElement('span');
   arrow.textContent = ' \u25be';
   toggle.append(arrow);
+  toggle.title = selectedElements.size ? [...selectedElements].join('\u3001') : '\u53ef\u591a\u9009';
   q('element-options').querySelectorAll('.element-choice').forEach(button => {
-    button.classList.toggle('selected', button.dataset.value === selected);
+    const selected = button.dataset.value ? selectedElements.has(button.dataset.value) : selectedElements.size === 0;
+    button.classList.toggle('selected', selected);
+    button.setAttribute('aria-pressed', String(selected));
   });
 }
 
@@ -143,12 +159,46 @@ function resetAndDraw() {
   draw();
 }
 
+function setPickerOpen(panelId, toggleId, open) {
+  q(panelId).hidden = !open;
+  q(toggleId).setAttribute('aria-expanded', String(open));
+}
+
+function buildRarityPicker() {
+  const panel = q('rarity-options');
+  const addChoice = value => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'filter-choice rarity-choice';
+    button.dataset.value = value;
+    const text = document.createElement('span');
+    text.textContent = rarityLabel(value);
+    button.append(text);
+    button.addEventListener('click', () => {
+      if (!value) selectedRarities.clear();
+      else if (selectedRarities.has(value)) selectedRarities.delete(value);
+      else selectedRarities.add(value);
+      refreshRarityPicker();
+      resetAndDraw();
+    });
+    panel.append(button);
+  };
+  addChoice('');
+  rarityValues.forEach(addChoice);
+  q('rarity-toggle').addEventListener('click', () => {
+    const open = panel.hidden;
+    setPickerOpen('element-options', 'element-toggle', false);
+    setPickerOpen('rarity-options', 'rarity-toggle', open);
+  });
+  refreshRarityPicker();
+}
+
 function buildElementPicker() {
   const panel = q('element-options');
   const addChoice = (value, label) => {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'element-choice';
+    button.className = 'filter-choice element-choice';
     button.dataset.value = value;
     const icon = iconFor(value);
     if (icon) button.append(icon);
@@ -156,9 +206,9 @@ function buildElementPicker() {
     text.textContent = label;
     button.append(text);
     button.addEventListener('click', () => {
-      q('element').value = value;
-      panel.hidden = true;
-      q('element-toggle').setAttribute('aria-expanded', 'false');
+      if (!value) selectedElements.clear();
+      else if (selectedElements.has(value)) selectedElements.delete(value);
+      else selectedElements.add(value);
       refreshElementPicker();
       resetAndDraw();
     });
@@ -167,8 +217,9 @@ function buildElementPicker() {
   addChoice('', '\u6240\u6709\u5c5e\u6027');
   elementValues.forEach(value => addChoice(value, value));
   q('element-toggle').addEventListener('click', () => {
-    panel.hidden = !panel.hidden;
-    q('element-toggle').setAttribute('aria-expanded', String(!panel.hidden));
+    const open = panel.hidden;
+    setPickerOpen('rarity-options', 'rarity-toggle', false);
+    setPickerOpen('element-options', 'element-toggle', open);
   });
   refreshElementPicker();
 }
@@ -226,12 +277,10 @@ function deferredImage(src, alt) {
 function matchingDragons() {
   const catalogue = catalogueMode === 'ticket' ? ticketDragons : all;
   const term = q('search').value.trim().toLowerCase();
-  const rarity = q('rarity').value;
-  const element = q('element').value;
   return catalogue.filter(dragon =>
     (!onlyFavourites || favourites.has(dragonKey(dragon))) &&
-    (!rarity || dragon.rarity === rarity) &&
-    (!element || dragon.elements.includes(element)) &&
+    (selectedRarities.size === 0 || selectedRarities.has(dragon.rarity)) &&
+    [...selectedElements].every(element => dragon.elements.includes(element)) &&
     (!term || [dragon.name, dragon.nameZh, dragon.title, dragon.rarity, dragon.rarityZh, ...dragon.elements].join(' ').toLowerCase().includes(term))
   );
 }
@@ -326,11 +375,6 @@ q('search').addEventListener('input', () => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(resetAndDraw, 120);
 });
-q('rarity').addEventListener('change', resetAndDraw);
-q('element').addEventListener('change', () => {
-  refreshElementPicker();
-  resetAndDraw();
-});
 q('favorites-toggle').addEventListener('click', () => {
   onlyFavourites = !onlyFavourites;
   refreshFavouritesToggle();
@@ -359,6 +403,19 @@ q('lang-en').addEventListener('click', () => {
   draw();
 });
 
+document.addEventListener('click', event => {
+  if (!event.target.closest('.filter-picker')) {
+    setPickerOpen('rarity-options', 'rarity-toggle', false);
+    setPickerOpen('element-options', 'element-toggle', false);
+  }
+});
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape') return;
+  setPickerOpen('rarity-options', 'rarity-toggle', false);
+  setPickerOpen('element-options', 'element-toggle', false);
+});
+
+buildRarityPicker();
 buildElementPicker();
 addFullscreenWatermark();
 document.querySelectorAll('.watermark-overlay span').forEach(item => {
@@ -370,5 +427,5 @@ refreshLanguageUi();
 draw();
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20260727-interface-cn6', { scope: './' }).catch(() => {}));
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20260824-multi-filter1', { scope: './' }).catch(() => {}));
 }
